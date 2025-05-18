@@ -1,3 +1,4 @@
+import os
 import requests
 from bs4 import BeautifulSoup
 import gspread
@@ -5,11 +6,21 @@ from google.oauth2.service_account import Credentials
 from datetime import datetime
 import pytz
 import streamlit as st
+import json
 
-# Google Sheets setup
+# Google Sheets setup using credentials from environment variable
 SCOPES = ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive']
-creds = Credentials.from_service_account_file('credentials.json', scopes=SCOPES)
-client = gspread.authorize(creds)
+
+# Retrieve the Google credentials from the environment variable
+google_credentials = os.getenv('GOOGLE_CREDENTIALS')
+
+if google_credentials:
+    creds_dict = json.loads(google_credentials)  # Parse the JSON credentials
+    creds = Credentials.from_service_account_info(creds_dict, scopes=SCOPES)
+    client = gspread.authorize(creds)
+else:
+    raise ValueError("Google credentials are missing!")
+
 sheet_file = 'Swamp House Topic Scraper'
 
 # News sources and worksheet mapping
