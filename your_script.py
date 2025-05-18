@@ -8,15 +8,9 @@ import streamlit as st
 
 # Google Sheets setup
 SCOPES = ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive']
-
-try:
-    creds = Credentials.from_service_account_file('credentials.json', scopes=SCOPES)
-    client = gspread.authorize(creds)
-except Exception as e:
-    st.error(f"❌ Google credentials error: {e}")
-    st.stop()
-
-sheet_file = 'Swamp House Topic Scraper'
+SPREADSHEET_ID = '1-NX22kxDlDLLnoxhaXboo9MRQDLLdD9Qf7CgW1weYBI'
+creds = Credentials.from_service_account_file('credentials.json', scopes=SCOPES)
+client = gspread.authorize(creds)
 
 # News sources and worksheet mapping
 news_sites = {
@@ -38,56 +32,37 @@ HEADERS = {
 st.title("News Scraper")
 st.write("Click the button below to start scraping the latest headlines.")
 
+# Scraping function
 def job():
     today = datetime.now(pytz.timezone('Asia/Manila')).strftime('%Y-%m-%d %H:%M:%S')
     st.write(f"\n🕕 Starting scrape job at {today}")
     all_rows = []
+    spreadsheet = client.open_by_key(SPREADSHEET_ID)
 
     for site_name, url in news_sites.items():
         st.write(f"\n🔍 Scraping: {site_name}")
         try:
             response = requests.get(url, headers=HEADERS, timeout=15)
             response.raise_for_status()
-
             soup = BeautifulSoup(response.text, 'html.parser')
+            links = soup.find_all('a')
+            st.write(f"✅ Found {len(links)} links in {site_name}.")
 
-            # Site-specific headline selectors
-            if site_name == 'Gateway Pundit':
-                articles = soup.select('h2.entry-title a')
-            elif site_name == 'Breitbart':
-                articles = soup.select('div.bndn-hdln a, h2 a')
-            elif site_name == 'Townhall':
-                articles = soup.select('section.content a')
-            elif site_name == 'Fox News':
-                articles = soup.select('h2.title a, h4.title a')
-            elif site_name == 'New York Post':
-                articles = soup.select('h3.entry-heading a, h2.headline a')
-            else:
-                articles = soup.find_all('a')
-
-            st.write(f"✅ Found {len(articles)} potential headlines in {site_name}")
-
-            worksheet = client.open(sheet_file).worksheet(site_name)
+            worksheet = spreadsheet.worksheet(site_name)
             worksheet.clear()
             worksheet.append_row(['Date', 'Headline', 'Link'])
 
             added = set()
             rows = []
 
-            for a in articles:
+            for a in links:
                 href = a.get('href')
                 text = a.get_text(strip=True)
 
                 if not href or not text:
                     continue
 
-                # Build full URL if needed
-                if not href.startswith('http'):
-                    full_url = url.rstrip('/') + '/' + href.lstrip('/')
-                else:
-                    full_url = href
-
-                # Check that it's a valid article link and not duplicate text
+                full_url = href if href.startswith('http') else url.rstrip('/') + '/' + href.lstrip('/')
                 if any(domain in full_url for domain in ['gatewaypundit.com', 'breitbart.com', 'townhall.com', 'foxnews.com', 'nypost.com']) and text not in added:
                     rows.append([today, text, full_url])
                     added.add(text)
@@ -104,12 +79,11 @@ def job():
 
     return all_rows
 
-# Add button to trigger scraping
+# Button to trigger scrape
 if st.button("Start Scraping"):
     data = job()
-
     if data:
         st.write("Scraped Data:")
-        st.write(data)  # Display the scraped headlines
+        st.write(data)
     else:
         st.write("No data to display.")
