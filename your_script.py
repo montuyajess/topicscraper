@@ -1,4 +1,5 @@
 import os
+import json
 import requests
 from bs4 import BeautifulSoup
 import gspread
@@ -6,21 +7,25 @@ from google.oauth2.service_account import Credentials
 from datetime import datetime
 import pytz
 import streamlit as st
-import json
 
-# Google Sheets setup using credentials from environment variable
+# Streamlit UI
+st.title("News Scraper")
+st.write("Click the button below to start scraping the latest headlines.")
+
+# Set up Google Sheets credentials
 SCOPES = ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive']
 
-# Retrieve the Google credentials from the environment variable
-google_credentials = os.getenv('GOOGLE_CREDENTIALS')
-
-if google_credentials:
-    creds_dict = json.loads(google_credentials)  # Parse the JSON credentials
-    creds = Credentials.from_service_account_info(creds_dict, scopes=SCOPES)
-    client = gspread.authorize(creds)
+if os.path.exists('credentials.json'):
+    creds = Credentials.from_service_account_file('credentials.json', scopes=SCOPES)
 else:
-    raise ValueError("Google credentials are missing!")
+    # For environments like GitHub Actions, where credentials are set as environment variable
+    if 'CREDENTIALS' in os.environ:
+        service_account_info = json.loads(os.environ['CREDENTIALS'])
+        creds = Credentials.from_service_account_info(service_account_info, scopes=SCOPES)
+    else:
+        raise ValueError("Google credentials are missing!")
 
+client = gspread.authorize(creds)
 sheet_file = 'Swamp House Topic Scraper'
 
 # News sources and worksheet mapping
@@ -38,10 +43,6 @@ HEADERS = {
                   "AppleWebKit/537.36 (KHTML, like Gecko) "
                   "Chrome/122.0.0.0 Safari/537.36"
 }
-
-# Streamlit UI
-st.title("News Scraper")
-st.write("Click the button below to start scraping the latest headlines.")
 
 # Function to perform scraping
 def job():
@@ -94,6 +95,6 @@ if st.button("Start Scraping"):
 
     if data:
         st.write("Scraped Data:")
-        st.write(data)  # Display the scraped headlines
+        st.write(data)
     else:
         st.write("No data to display.")
