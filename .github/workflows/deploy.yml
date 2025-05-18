@@ -1,0 +1,32 @@
+name: Deploy Streamlit App
+
+on:
+  push:
+    branches:
+      - main  # This triggers the workflow when changes are pushed to the 'main' branch
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest  # Use Ubuntu as the runner environment
+
+    steps:
+      # Step 1: Checkout the code
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      # Step 2: Set up Google credentials (use a secret environment variable for security)
+      - name: Set up Google credentials
+        run: echo "$GOOGLE_CREDENTIALS" > credentials.json
+        env:
+          GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}  # Retrieves your secret stored in GitHub
+
+      # Step 3: Install dependencies
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt  # Installs dependencies from your requirements.txt
+
+      # Step 4: Run Streamlit app
+      - name: Run Streamlit app
+        run: |
+          streamlit run rthis_your_script.py  # Replace 'rthis_your_script.py' with your actual Streamlit script name
